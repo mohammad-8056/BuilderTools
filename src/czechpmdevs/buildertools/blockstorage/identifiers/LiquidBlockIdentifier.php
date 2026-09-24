@@ -20,30 +20,31 @@ declare(strict_types=1);
 
 namespace czechpmdevs\buildertools\blockstorage\identifiers;
 
-use pocketmine\block\Block;
+use czechpmdevs\buildertools\utils\BlockStateConverter;
 use pocketmine\block\VanillaBlocks;
 use pocketmine\utils\AssumptionFailedError;
-use function array_push;
 use function in_array;
 
 class LiquidBlockIdentifier implements BlockIdentifierList {
-	/** @var int[] */
-	private array $ids = [];
+	/** @var int[] Block type ids */
+	private array $ids;
 
 	public function __construct() {
-		array_push($this->ids, ...VanillaBlocks::WATER()->getIdInfo()->getAllBlockIds());
-		array_push($this->ids, ...VanillaBlocks::LAVA()->getIdInfo()->getAllBlockIds());
+		$this->ids = [
+			VanillaBlocks::WATER()->getTypeId(),
+			VanillaBlocks::LAVA()->getTypeId()
+		];
 	}
 
 	public function nextBlock(?int &$fullBlockId): void {
-		throw new AssumptionFailedError("nextBlock does not work with MergedBlockIdentifier");
+		throw new AssumptionFailedError("nextBlock does not work with LiquidBlockIdentifier");
 	}
 
 	public function containsBlock(int $fullBlockId): bool {
-		return in_array($fullBlockId << Block::INTERNAL_METADATA_BITS, $this->ids);
+		return in_array(BlockStateConverter::getTypeId($fullBlockId), $this->ids, true);
 	}
 
 	public function containsBlockId(int $id): bool {
-		return in_array($id, $this->ids);
+		return in_array($id, $this->ids, true);
 	}
 }

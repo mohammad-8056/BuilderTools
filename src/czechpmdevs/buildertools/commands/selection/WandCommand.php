@@ -22,11 +22,10 @@ namespace czechpmdevs\buildertools\commands\selection;
 
 use czechpmdevs\buildertools\BuilderTools;
 use czechpmdevs\buildertools\commands\BuilderToolsCommand;
-use czechpmdevs\buildertools\item\WoodenAxe;
+use czechpmdevs\buildertools\item\ItemGlint;
 use pocketmine\command\CommandSender;
 use pocketmine\item\VanillaItems;
 use pocketmine\player\Player;
-use pocketmine\utils\AssumptionFailedError;
 
 class WandCommand extends BuilderToolsCommand {
 	public function __construct() {
@@ -41,20 +40,7 @@ class WandCommand extends BuilderToolsCommand {
 			return;
 		}
 
-		$item = VanillaItems::WOODEN_AXE();
-		if(!$item instanceof WoodenAxe) {
-			BuilderTools::getInstance()->registerItems();
-		} else {
-			$item = VanillaItems::WOODEN_AXE();
-			if(!$item instanceof WoodenAxe) {
-				throw new AssumptionFailedError("Received item should be BuilderTools WoodenAxe");
-			}
-
-		}
-
-		/** @phpstan-var WoodenAxe $item */
-		$item->setIsWandAxe(true);
-
+		$item = ItemGlint::apply(VanillaItems::WOODEN_AXE());
 		$item->setCustomName(BuilderTools::getConfiguration()->getStringProperty("wand-axe-name"));
 		$item->getNamedTag()->setByte("buildertools", 1);
 

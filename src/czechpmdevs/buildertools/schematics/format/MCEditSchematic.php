@@ -25,6 +25,7 @@ use czechpmdevs\buildertools\blockstorage\BlockArraySizeData;
 use czechpmdevs\buildertools\blockstorage\helpers\BlockArrayIteratorHelper;
 use czechpmdevs\buildertools\editors\Fixer;
 use czechpmdevs\buildertools\schematics\SchematicException;
+use czechpmdevs\buildertools\utils\BlockStateConverter;
 use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\tag\ByteArrayTag;
 use pocketmine\nbt\tag\CompoundTag;
@@ -58,6 +59,11 @@ class MCEditSchematic implements Schematic {
 		$this->readBlockData($nbt, $blocks, $data);
 		$this->readMaterials($nbt, $materials);
 
+		$fixer = null;
+		if($materials === MCEditSchematic::MATERIALS_CLASSIC || $materials === MCEditSchematic::MATERIALS_ALPHA) {
+			$fixer = Fixer::getInstance();
+		}
+
 		$blockArray = new BlockArray();
 
 		$i = 0;
@@ -67,17 +73,12 @@ class MCEditSchematic implements Schematic {
 					$id = ord($blocks[$i]);
 					$meta = ord($data[$i]);
 
-					$blockArray->addBlockAt($x, $y, $z, $id << 4 | $meta);
+					// Convert legacy block ids to PocketMine-MP block state ids
+					$fullBlock = $id << 4 | $meta;
+					$fixer?->convertJavaToBedrockId($fullBlock);
+					$blockArray->addBlockAt($x, $y, $z, BlockStateConverter::fromLegacyFullId($fullBlock));
 					++$i;
 				}
-			}
-		}
-
-		if($materials === MCEditSchematic::MATERIALS_CLASSIC || $materials === MCEditSchematic::MATERIALS_ALPHA) {
-			$fixer = Fixer::getInstance();
-
-			foreach($blockArray->blocks as &$fullBlock) {
-				$fixer->convertJavaToBedrockId($fullBlock);
 			}
 		}
 
@@ -140,8 +141,9 @@ class MCEditSchematic implements Schematic {
 			$iterator->readNext($x, $y, $z, $fullBlockId);
 			$key = $x + ($width * $z) + ($xz * $y);
 
-			$blocks[$key] = chr($fullBlockId >> 4);
-			$data[$key] = chr($fullBlockId & 0xf);
+			$legacyFullId = BlockStateConverter::toLegacyFullId($fullBlockId);
+			$blocks[$key] = chr(($legacyFullId >> BlockStateConverter::LEGACY_META_BITS) & 0xff);
+			$data[$key] = chr($legacyFullId & BlockStateConverter::LEGACY_META_MASK);
 		}
 
 		$this->writeDimensions($nbt, $width, $height, $length);

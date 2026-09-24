@@ -31,6 +31,7 @@ use czechpmdevs\buildertools\session\SessionManager;
 use czechpmdevs\buildertools\utils\StringToBlockDecoder;
 use czechpmdevs\buildertools\utils\Timer;
 use pocketmine\block\Block;
+use pocketmine\block\BlockTypeIds;
 use pocketmine\math\Vector3;
 use pocketmine\player\Player;
 use pocketmine\utils\SingletonTrait;
@@ -63,7 +64,7 @@ class Printer {
 				return;
 			}
 
-			$updates->addBlock($vector3, $level->getBlock($vector3, true, false)->getId());
+			$updates->addBlock($vector3, $level->getBlock($vector3, true, false)->getStateId());
 
 			/** @phpstan-ignore-next-line */
 			$level->setBlockAt($vector3->getX(), $vector3->getY(), $vector3->getZ(), $block); // We provide valid values
@@ -112,7 +113,7 @@ class Printer {
 		$z = $position->getFloorZ();
 
 		/** @noinspection PhpStatementHasEmptyBodyInspection */
-		for(; $y >= 0 && $level->getBlockAt($x, $y, $z, true, false)->getId() === 0; $y--) ;
+		for(; $y >= World::Y_MIN && $level->getBlockAt($x, $y, $z, true, false)->getTypeId() === BlockTypeIds::AIR; $y--) ;
 
 		return new Vector3($x, ++$y, $z);
 	}
@@ -167,7 +168,7 @@ class Printer {
 						continue;
 					}
 
-					if($floorY + $y >= 0 && $floorY + $y < 256) { // TODO - Try creating 4 chunk iterators
+					if($floorY + $y >= World::Y_MIN && $floorY + $y < World::Y_MAX) { // TODO - Try creating 4 chunk iterators
 						$stringToBlockDecoder->nextBlock($fullBlockId);
 						$fillSession->setBlockAt($floorX + $x, $floorY + $y, $floorZ + $z, $fullBlockId);
 
@@ -180,7 +181,7 @@ class Printer {
 						$stringToBlockDecoder->nextBlock($fullBlockId);
 						$fillSession->setBlockAt($floorX - $x, $floorY + $y, $floorZ - $z, $fullBlockId);
 					}
-					if($floorY - $y >= 0 && $floorY - $y < 256) {
+					if($floorY - $y >= World::Y_MIN && $floorY - $y < World::Y_MAX) {
 						$stringToBlockDecoder->nextBlock($fullBlockId);
 						$fillSession->setBlockAt($floorX + $x, $floorY - $y, $floorZ + $z, $fullBlockId);
 
@@ -230,13 +231,13 @@ class Printer {
 		$floorY = $center->getFloorY();
 		$floorZ = $center->getFloorZ();
 
-		// Optimizing Y values to belong <0;255>
-		if($floorY < 0) {
-			$height += $floorY;
-			$floorY = 0;
+		// Optimizing Y values to belong to the world height
+		if($floorY < World::Y_MIN) {
+			$height -= World::Y_MIN - $floorY;
+			$floorY = World::Y_MIN;
 		}
-		if($floorY + $height > 255) {
-			$height = 255 - $floorY;
+		if($floorY + $height > World::Y_MAX - 1) {
+			$height = World::Y_MAX - 1 - $floorY;
 		}
 		$finalHeight = $height + $floorY;
 
@@ -325,7 +326,7 @@ class Printer {
 						continue;
 					}
 
-					if($floorY + $y < 0 || $floorY + $y > 255) {
+					if($floorY + $y < World::Y_MIN || $floorY + $y > World::Y_MAX - 1) {
 						continue;
 					}
 
@@ -364,7 +365,7 @@ class Printer {
 		$center = Position::fromObject($center->floor(), $center->getWorld());
 		$radius = abs($radius);
 
-		if($player->getPosition()->getY() - $radius < 0 || $player->getPosition()->getY() + $radius >= World::Y_MAX) {
+		if($player->getPosition()->getY() - $radius < World::Y_MIN || $player->getPosition()->getY() + $radius >= World::Y_MAX) {
 			return UpdateResult::error("Shape is outside of the map!");
 		}
 
@@ -399,7 +400,7 @@ class Printer {
 		}
 
 		$floorY = $center->getFloorY();
-		if($floorY < 0) {
+		if($floorY < World::Y_MIN) {
 			return UpdateResult::error("It is not possible to create island here");
 		}
 
@@ -447,7 +448,7 @@ class Printer {
 
 			$currentRadius -= $step;
 
-			if(--$y < 0) {
+			if(--$y < World::Y_MIN) {
 				break;
 			}
 		}

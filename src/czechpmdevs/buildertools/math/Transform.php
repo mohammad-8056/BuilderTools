@@ -69,8 +69,7 @@ class Transform {
 			);
 		}
 
-		$blockArray->blocks = $modifiedClipboard->blocks;
-		$blockArray->coords = $modifiedClipboard->coords;
+		$blockArray->replaceWith($modifiedClipboard);
 	}
 
 	public function rotateX(int $degrees): void {
@@ -79,7 +78,7 @@ class Transform {
 		$diff = $this->relativePosition;
 		[$diffY, $diffZ] = [$diff->getFloorY(), $diff->getFloorZ()];
 
-		$rotationMapping = BlockFacingHelper::getInstance()->getRotationMapping(Axis::Y, $degrees);
+		$rotationMapping = BlockFacingHelper::getInstance()->getRotationMapping(Axis::X, $degrees);
 
 		$blockArray = $this->blockStorage;
 		$iterator = new BlockArrayIteratorHelper($blockArray);
@@ -102,8 +101,7 @@ class Transform {
 				$rotationMapping[$fullBlockId] ?? $fullBlockId);
 		}
 
-		$blockArray->blocks = $modifiedClipboard->blocks;
-		$blockArray->coords = $modifiedClipboard->coords;
+		$blockArray->replaceWith($modifiedClipboard);
 	}
 
 	public function rotateZ(int $degrees): void {
@@ -136,8 +134,7 @@ class Transform {
 			);
 		}
 
-		$blockArray->blocks = $modifiedBlockArray->blocks;
-		$blockArray->coords = $modifiedBlockArray->coords;
+		$blockArray->replaceWith($modifiedBlockArray);
 	}
 
 	public function flipX(): void {
@@ -159,8 +156,7 @@ class Transform {
 			);
 		}
 
-		$blockArray->blocks = $modifiedBlockArray->blocks;
-		$blockArray->coords = $modifiedBlockArray->coords;
+		$blockArray->replaceWith($modifiedBlockArray);
 	}
 
 	public function flipZ(): void {
@@ -182,8 +178,7 @@ class Transform {
 			);
 		}
 
-		$blockArray->blocks = $modifiedBlockArray->blocks;
-		$blockArray->coords = $modifiedBlockArray->coords;
+		$blockArray->replaceWith($modifiedBlockArray);
 	}
 
 	public function flipY(): void {
@@ -209,8 +204,7 @@ class Transform {
 			);
 		}
 
-		$blockArray->blocks = $modifiedBlockArray->blocks;
-		$blockArray->coords = $modifiedBlockArray->coords;
+		$blockArray->replaceWith($modifiedBlockArray);
 	}
 
 	public function collectChanges(): Clipboard {

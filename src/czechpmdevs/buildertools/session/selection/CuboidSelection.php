@@ -38,6 +38,7 @@ use czechpmdevs\buildertools\session\SelectionHolder;
 use czechpmdevs\buildertools\shape\Cuboid;
 use czechpmdevs\buildertools\utils\StringToBlockDecoder;
 use czechpmdevs\buildertools\utils\Timer;
+use pocketmine\block\VanillaBlocks;
 use pocketmine\math\Vector3;
 use pocketmine\math\VoxelRayTrace;
 use pocketmine\world\Position;
@@ -253,6 +254,8 @@ class CuboidSelection extends SelectionHolder {
 		$finalMinZ = $minZ + $zMotion;
 		$finalMaxZ = $maxZ + $zMotion;
 
+		$airStateId = VanillaBlocks::AIR()->getStateId();
+
 		$fillSession = new FillSession($this->world, false, true);
 		$fillSession->setDimensions(min($minX, $finalMinX), max($maxX, $finalMaxX), min($minZ, $finalMinZ), max($maxZ, $finalMaxZ));
 		$fillSession->loadChunks($this->world);
@@ -266,11 +269,11 @@ class CuboidSelection extends SelectionHolder {
 
 					// We remove the block if it is not inside the final area
 					if(!($isXInside && $isZInside && $y >= $finalMinY && $y <= $finalMaxY)) {
-						$fillSession->setBlockAt($x, $y, $z, 0);
+						$fillSession->setBlockAt($x, $y, $z, $airStateId);
 					}
 
 					$finalY = $yMotion + $y;
-					if($finalY >= World::Y_MIN && $finalY <= World::Y_MAX) {
+					if($finalY >= World::Y_MIN && $finalY < World::Y_MAX) {
 						$fillSession->setBlockAt($xMotion + $x, $finalY, $zMotion + $z, $fullBlockId);
 					}
 				}

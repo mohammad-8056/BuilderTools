@@ -47,76 +47,22 @@ final class BlockArraySizeData {
 		$minY = $maxY = $y;
 		$minZ = $maxZ = $z;
 
-		if($this->blockArray->size() % 2 === 0) {
-			$iterator->resetOffset();
-		}
-
 		while($iterator->hasNext()) {
-			$iterator->readNext($x1, $y1, $z1, $fullBlockId);
-			if(!$iterator->hasNext()) {
-				if($x1 < $minX) {
-					$minX = $x1;
-				} elseif($x1 > $maxX) {
-					$maxX = $x1;
-				}
-				if($y1 < $minY) {
-					$minY = $y1;
-				} elseif($y1 > $maxY) {
-					$maxY = $y1;
-				}
-				if($z1 < $minZ) {
-					$minZ = $z1;
-				} elseif($z1 > $maxZ) {
-					$maxZ = $z1;
-				}
-				break;
+			$iterator->readNext($x, $y, $z, $fullBlockId);
+			if($x < $minX) {
+				$minX = $x;
+			} elseif($x > $maxX) {
+				$maxX = $x;
 			}
-
-			$iterator->readNext($x2, $y2, $z2, $fullBlockId);
-			if($x1 > $x2) {
-				if($x2 < $minX) {
-					$minX = $x2;
-				}
-				if($x1 > $maxX) {
-					$maxX = $x1;
-				}
-			} else {
-				if($x1 < $minX) {
-					$minX = $x2;
-				}
-				if($x2 > $maxX) {
-					$maxX = $x1;
-				}
+			if($y < $minY) {
+				$minY = $y;
+			} elseif($y > $maxY) {
+				$maxY = $y;
 			}
-			if($y1 > $y2) {
-				if($y2 < $minY) {
-					$minY = $y2;
-				}
-				if($y1 > $maxY) {
-					$maxY = $y1;
-				}
-			} else {
-				if($y1 < $minY) {
-					$minY = $y2;
-				}
-				if($y2 > $maxY) {
-					$maxY = $y1;
-				}
-			}
-			if($z1 > $z2) {
-				if($z2 < $minZ) {
-					$minZ = $z2;
-				}
-				if($z1 > $maxZ) {
-					$maxZ = $z1;
-				}
-			} else {
-				if($z1 < $minZ) {
-					$minZ = $z2;
-				}
-				if($z2 > $maxZ) {
-					$maxZ = $z1;
-				}
+			if($z < $minZ) {
+				$minZ = $z;
+			} elseif($z > $maxZ) {
+				$maxZ = $z;
 			}
 		}
 
@@ -127,8 +73,6 @@ final class BlockArraySizeData {
 		$this->maxX = $maxX;
 		$this->maxY = $maxY;
 		$this->maxZ = $maxZ;
-
-		$iterator->resetOffset();
 	}
 
 	/**

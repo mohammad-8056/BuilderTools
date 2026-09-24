@@ -23,6 +23,7 @@ namespace czechpmdevs\buildertools\schematics\format;
 use czechpmdevs\buildertools\blockstorage\BlockArray;
 use czechpmdevs\buildertools\schematics\ReadonlySchematic;
 use czechpmdevs\buildertools\schematics\SchematicException;
+use czechpmdevs\buildertools\utils\BlockStateConverter;
 use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\tag\ByteArrayTag;
 use pocketmine\nbt\tag\CompoundTag;
@@ -57,7 +58,7 @@ class SpongeSchematic implements Schematic {
 
 		$palette = [];
 		foreach($paletteTag->getValue() as $javaState => $placeholder) {
-			$palette[$placeholder->getValue()] = $this->javaBlockStatesMap[$javaState] ?? (248 << 4);
+			$palette[$placeholder->getValue()] = isset($this->javaBlockStatesMap[$javaState]) ? BlockStateConverter::fromLegacyFullId($this->javaBlockStatesMap[$javaState]) : BlockStateConverter::getFallbackStateId();
 		}
 
 		$blocks = $nbt->getByteArray("BlockData");

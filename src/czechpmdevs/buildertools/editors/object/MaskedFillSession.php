@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace czechpmdevs\buildertools\editors\object;
 
 use czechpmdevs\buildertools\blockstorage\identifiers\BlockIdentifierList;
+use czechpmdevs\buildertools\utils\BlockStateConverter;
 use pocketmine\world\ChunkManager;
 
 class MaskedFillSession extends FillSession {
@@ -33,54 +34,23 @@ class MaskedFillSession extends FillSession {
 		$this->mask = $mask;
 	}
 
-	/**
-	 * @param int $y 0-255
-	 */
-	public function setBlockAt(int $x, int $y, int $z, int $fullBlockId): void {
+	public function setBlockAt(int $x, int $y, int $z, int $stateId): void {
 		if(!$this->moveTo($x, $y, $z)) {
 			return;
 		}
 
-		// TODO
-		if($this->mask !== null && (
-			!$this->mask->containsBlock(
-				/** @phpstan-ignore-next-line */
-				$this->explorer->currentSubChunk->getFullBlock($x & 0xf, $y & 0xf, $z & 0xf)
-			)) && (
-			!$this->mask->containsBlockId(
-				/** @phpstan-ignore-next-line */
-				$this->explorer->currentSubChunk->getFullBlock($x & 0xf, $y & 0xf, $z & 0xf) >> 4)
-			)
-		) {
-			return;
-		}
-
-		$this->saveChanges($x, $y, $z);
-
-		/** @phpstan-ignore-next-line */
-		$this->explorer->currentSubChunk->setFullBlock($x & 0xf, $y & 0xf, $z & 0xf, $fullBlockId);
-		$this->blocksChanged++;
-	}
-
-	/**
-	 * @param int $y 0-255
-	 */
-	public function setBlockIdAt(int $x, int $y, int $z, int $id): void {
-		if(!$this->moveTo($x, $y, $z)) {
-			return;
-		}
-
-		if($this->mask !== null && !$this->mask->containsBlock(
+		if($this->mask !== null) {
 			/** @phpstan-ignore-next-line */
-				$this->explorer->currentSubChunk->getFullBlock($x & 0xf, $y & 0xf, $z & 0xf))
-		) {
-			return;
+			$currentStateId = $this->explorer->currentSubChunk->getBlockStateId($x & 0xf, $y & 0xf, $z & 0xf);
+			if(!$this->mask->containsBlock($currentStateId) && !$this->mask->containsBlockId(BlockStateConverter::getTypeId($currentStateId))) {
+				return;
+			}
 		}
 
 		$this->saveChanges($x, $y, $z);
 
 		/** @phpstan-ignore-next-line */
-		$this->explorer->currentSubChunk->setFullBlock($x & 0xf, $y & 0xf, $z & 0xf, $id);
+		$this->explorer->currentSubChunk->setBlockStateId($x & 0xf, $y & 0xf, $z & 0xf, $stateId);
 		$this->blocksChanged++;
 	}
 }

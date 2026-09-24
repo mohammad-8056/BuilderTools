@@ -1,7 +1,7 @@
 name: BuilderTools
-api: [4.0.0]
+api: [5.0.0]
 author: CzechPMDevs
-authors: [VixikHD]
+authors: [VixikHD, Kevin]
 version: 1.4.0
 main: czechpmdevs\buildertools\BuilderTools
 website: https://github.com/CzechPMDevs/BuilderTools

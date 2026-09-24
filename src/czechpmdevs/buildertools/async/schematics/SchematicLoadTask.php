@@ -28,13 +28,16 @@ use RuntimeException;
 use function basename;
 use function file_exists;
 use function file_get_contents;
+use function serialize;
+use function unserialize;
 
 class SchematicLoadTask extends BuilderToolsAsyncTask {
 
 	public string $file;
 	public string $name;
 
-	public CompressedBlockArray $blockStorage;
+	/** Serialized CompressedBlockArray (non-thread-safe objects cannot be stored in async task properties) */
+	public string $blockStorage;
 
 	public function __construct(string $file) {
 		parent::__construct();
@@ -64,6 +67,15 @@ class SchematicLoadTask extends BuilderToolsAsyncTask {
 		$blockArray = $schematic->load($rawData);
 
 		$this->name = basename($this->file, "." . $schematic::getFileExtension());
-		$this->blockStorage = new CompressedBlockArray($blockArray);
+		$this->blockStorage = serialize(new CompressedBlockArray($blockArray));
+	}
+
+	public function getBlockStorage(): CompressedBlockArray {
+		$blockStorage = unserialize($this->blockStorage);
+		if(!$blockStorage instanceof CompressedBlockArray) {
+			throw new RuntimeException("Could not deserialize loaded schematic");
+		}
+
+		return $blockStorage;
 	}
 }

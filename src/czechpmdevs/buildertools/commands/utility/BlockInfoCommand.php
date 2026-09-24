@@ -22,11 +22,9 @@ namespace czechpmdevs\buildertools\commands\utility;
 
 use czechpmdevs\buildertools\BuilderTools;
 use czechpmdevs\buildertools\commands\BuilderToolsCommand;
+use czechpmdevs\buildertools\item\ItemGlint;
 use pocketmine\command\CommandSender;
-use pocketmine\item\Item;
 use pocketmine\item\VanillaItems;
-use pocketmine\nbt\NBT;
-use pocketmine\nbt\tag\ListTag;
 use pocketmine\player\Player;
 
 class BlockInfoCommand extends BuilderToolsCommand {
@@ -42,9 +40,8 @@ class BlockInfoCommand extends BuilderToolsCommand {
 			return;
 		}
 
-		$item = VanillaItems::STICK();
+		$item = ItemGlint::apply(VanillaItems::STICK());
 		$item->setCustomName(BuilderTools::getConfiguration()->getStringProperty("blockinfo-stick-name"));
-		$item->getNamedTag()->setTag(Item::TAG_ENCH, new ListTag([], NBT::TAG_Compound));
 		$item->getNamedTag()->setByte("buildertools", 1);
 
 		$sender->getInventory()->addItem($item);

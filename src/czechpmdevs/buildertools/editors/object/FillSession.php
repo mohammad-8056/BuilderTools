@@ -22,9 +22,14 @@ namespace czechpmdevs\buildertools\editors\object;
 
 use czechpmdevs\buildertools\blockstorage\BlockArray;
 use czechpmdevs\buildertools\BuilderTools;
-use pocketmine\block\BlockFactory;
+use czechpmdevs\buildertools\utils\BlockStateConverter;
+use pocketmine\block\Block;
+use pocketmine\block\BlockTypeIds;
+use pocketmine\block\RuntimeBlockStateRegistry;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\world\ChunkManager;
+use pocketmine\world\format\Chunk;
+use pocketmine\world\format\SubChunk;
 use pocketmine\world\utils\SubChunkExplorer;
 use pocketmine\world\utils\SubChunkExplorerStatus;
 use pocketmine\world\World;
@@ -50,7 +55,14 @@ class FillSession {
 	 */
 	protected int $lastHash;
 
-	public function __construct(ChunkManager $world, bool $calculateDimensions = true, bool $saveChanges = true) {
+	/** @var array<int, true> Chunks which could not be loaded (not generated yet) */
+	protected array $missingChunks = [];
+
+	public function __construct(
+		protected ChunkManager $world,
+		bool $calculateDimensions = true,
+		bool $saveChanges = true
+	) {
 		$this->explorer = new SubChunkExplorer($world);
 
 		$this->calculateDimensions = $calculateDimensions;
@@ -73,10 +85,7 @@ class FillSession {
 		return $this;
 	}
 
-	/**
-	 * @param int $y 0-255
-	 */
-	public function setBlockAt(int $x, int $y, int $z, int $fullBlockId): void {
+	public function setBlockAt(int $x, int $y, int $z, int $stateId): void {
 		if(!$this->moveTo($x, $y, $z)) {
 			return;
 		}
@@ -84,69 +93,46 @@ class FillSession {
 		$this->saveChanges($x, $y, $z);
 
 		/** @phpstan-ignore-next-line */
-		$this->explorer->currentSubChunk->setFullBlock($x & 0xf, $y & 0xf, $z & 0xf, $fullBlockId);
+		$this->explorer->currentSubChunk->setBlockStateId($x & 0xf, $y & 0xf, $z & 0xf, $stateId);
 		++$this->blocksChanged;
 	}
 
-	/**
-	 * @param int $y 0-255
-	 */
-	public function setBlockIdAt(int $x, int $y, int $z, int $id): void {
+	public function getBlockAt(int $x, int $y, int $z, ?int &$stateId = 0): void {
 		if(!$this->moveTo($x, $y, $z)) {
-			return;
-		}
-
-		$this->saveChanges($x, $y, $z);
-
-		/** @phpstan-ignore-next-line */
-		$this->explorer->currentSubChunk->setFullBlock($x & 0xf, $y & 0xf, $z & 0xf, $id << 4);
-		++$this->blocksChanged;
-	}
-
-	/**
-	 * @param int $y 0-255
-	 */
-	public function getBlockAt(int $x, int $y, int $z, ?int &$fullBlockId = 0): void {
-		if(!$this->moveTo($x, $y, $z)) {
+			$stateId = Block::EMPTY_STATE_ID; // Air
 			return;
 		}
 
 		/** @phpstan-ignore-next-line */
-		$fullBlockId = $this->explorer->currentSubChunk->getFullBlock($x & 0xf, $y & 0xf, $z & 0xf);
-	}
-
-	/**
-	 * @param int $y 0-255
-	 */
-	public function getBlockIdAt(int $x, int $y, int $z, ?int &$id): void {
-		if(!$this->moveTo($x, $y, $z)) {
-			return;
-		}
-
-		/** @phpstan-ignore-next-line */
-		$this->lastHash = $this->explorer->currentSubChunk->getFullBlock($x & 0xf, $y & 0xf, $z & 0xf);
-
-		$id = $this->lastHash >> 4;
+		$stateId = $this->explorer->currentSubChunk->getBlockStateId($x & 0xf, $y & 0xf, $z & 0xf);
 	}
 
 	public function setBiomeAt(int $x, int $z, int $id): void {
-		if(!$this->explorer->moveTo($x, 0, $z)) {
+		if($this->explorer->moveTo($x, 0, $z) === SubChunkExplorerStatus::INVALID) {
 			return;
 		}
 
 		/** @phpstan-ignore-next-line */
-		$this->explorer->currentChunk->setBiomeId($x & 0xf, $z & 0xf, $id);
+		foreach($this->explorer->currentChunk->getSubChunks() as $subChunk) {
+			$biomes = $subChunk->getBiomeArray();
+			for($y = 0; $y < SubChunk::EDGE_LENGTH; ++$y) {
+				$biomes->set($x & 0xf, $y, $z & 0xf, $id);
+			}
+		}
 		++$this->blocksChanged;
 	}
 
 	public function getHighestBlockAt(int $x, int $z, ?int &$y = null): bool {
-		for($y = 255; $y >= 0; --$y) {
-			$this->explorer->moveTo($x, $y, $z);
+		$registry = RuntimeBlockStateRegistry::getInstance();
+		for($y = World::Y_MAX - 1; $y >= World::Y_MIN; --$y) {
+			if($this->explorer->moveTo($x, $y, $z) === SubChunkExplorerStatus::INVALID) {
+				return false;
+			}
 
 			/** @phpstan-ignore-next-line */
-			$id = $this->explorer->currentSubChunk->getFullBlock($x & 0xf, $y & 0xf, $z & 0xf);
-			if($id >> 4 !== 0) {
-				if(BlockFactory::getInstance()->get($id >> 4, $id & 0xf)->isSolid()) {
+			$stateId = $this->explorer->currentSubChunk->getBlockStateId($x & 0xf, $y & 0xf, $z & 0xf);
+			if(BlockStateConverter::getTypeId($stateId) !== BlockTypeIds::AIR) {
+				if($registry->fromStateId($stateId)->isSolid()) {
 					$y++;
 					return true;
 				}
@@ -222,7 +208,7 @@ class FillSession {
 	}
 
 	protected function moveTo(int $x, int $y, int $z): bool {
-		if($this->explorer->moveTo($x, $y, $z) === SubChunkExplorerStatus::INVALID) {
+		if($this->explorer->moveTo($x, $y, $z) === SubChunkExplorerStatus::INVALID && !$this->loadChunkAt($x, $y, $z)) {
 			return false;
 		}
 
@@ -236,10 +222,36 @@ class FillSession {
 		return true;
 	}
 
+	/**
+	 * Chunks outside of players' view distance are not loaded, so they have to be
+	 * loaded before writing to them. Otherwise, the blocks would be silently skipped.
+	 */
+	private function loadChunkAt(int $x, int $y, int $z): bool {
+		if($y < World::Y_MIN || $y >= World::Y_MAX || !$this->world instanceof World) {
+			return false;
+		}
+
+		$chunkX = $x >> Chunk::COORD_BIT_SIZE;
+		$chunkZ = $z >> Chunk::COORD_BIT_SIZE;
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		if(isset($this->missingChunks[$chunkHash])) {
+			return false;
+		}
+
+		if($this->world->loadChunk($chunkX, $chunkZ) === null) {
+			$this->missingChunks[$chunkHash] = true;
+			$this->error = true;
+			return false;
+		}
+
+		$this->explorer->invalidate();
+		return $this->explorer->moveTo($x, $y, $z) !== SubChunkExplorerStatus::INVALID;
+	}
+
 	protected function saveChanges(int $x, int $y, int $z): void {
 		if($this->saveChanges) {
 			/** @phpstan-ignore-next-line */
-			$this->changes->addBlockAt($x, $y, $z, $this->explorer->currentSubChunk->getFullBlock($x & 0xf, $y & 0xf, $z & 0xf));
+			$this->changes->addBlockAt($x, $y, $z, $this->explorer->currentSubChunk->getBlockStateId($x & 0xf, $y & 0xf, $z & 0xf));
 		}
 	}
 

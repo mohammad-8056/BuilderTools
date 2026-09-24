@@ -23,21 +23,14 @@ namespace czechpmdevs\buildertools\schematics\format;
 use czechpmdevs\buildertools\blockstorage\BlockArray;
 use czechpmdevs\buildertools\schematics\ReadonlySchematic;
 use czechpmdevs\buildertools\schematics\SchematicException;
+use czechpmdevs\buildertools\utils\BlockStateConverter;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
-use pocketmine\nbt\tag\StringTag;
 use Throwable;
 use function array_map;
-use function file_get_contents;
-use function getcwd;
-use function implode;
 use function intval;
-use function is_array;
-use function is_file;
-use function json_decode;
-use const DIRECTORY_SEPARATOR;
 
 /**
  * MCStructSchematic is schematic format created by Mojang for structure blocks
@@ -46,16 +39,10 @@ use const DIRECTORY_SEPARATOR;
 class MCStructureSchematic implements Schematic {
 	use ReadonlySchematic;
 
-	/** @var array<string, int> */
-	private array $bedrockBlockStatesMap = [];
-
 	public function load(string $rawData): BlockArray {
 		$nbt = (new LittleEndianNbtSerializer())->read($rawData)->mustGetCompoundTag();
 
 		$size = $this->readVector3($nbt, "size");
-
-		// Palette & indexes
-		$this->loadMapping();
 
 		// Blocks
 		$palette = $this->readPalette($nbt);
@@ -72,15 +59,10 @@ class MCStructureSchematic implements Schematic {
 		for($x = 0; $x < $width; ++$x) {
 			for($y = 0; $y < $height; ++$y) {
 				for($z = 0; $z < $length; ++$z) {
-					$fullBlockId = $palette[$indexes[$i]];
-					$id = $fullBlockId >> 4;
-					$meta = $fullBlockId & 0xf;
-
-					if($id > 255 || $id < 0) {
-						$id = 0;
+					$index = $indexes[$i];
+					if($index !== -1) { // -1 = structure void
+						$blockArray->addBlockAt($x, $y, $z, $palette[$index] ?? BlockStateConverter::getFallbackStateId());
 					}
-
-					$blockArray->addBlockAt($x, $y, $z, $id << 4 | $meta);
 					++$i;
 				}
 			}
@@ -110,7 +92,7 @@ class MCStructureSchematic implements Schematic {
 
 		$palette = [];
 		foreach($paletteData as $i => $entry) {
-			$palette[$i] = $this->getFullBlockIdByState($entry);
+			$palette[$i] = BlockStateConverter::fromBlockStateNbt($entry);
 		}
 
 		return $palette;
@@ -127,43 +109,6 @@ class MCStructureSchematic implements Schematic {
 		/** @var int[] $values */
 		$values = $listTag->getAllValues();
 		return $values;
-	}
-
-	private function getFullBlockIdByState(CompoundTag $blockState): int {
-		$index = $blockState->getString("name");
-		if(($states = $blockState->getCompoundTag("states")) !== null && $states->count() !== 0) {
-			$data = [];
-			/** @var StringTag $state */
-			foreach($states as $k => $state) {
-				$data[] = "$k={$state->getValue()}";
-			}
-			$index .= "[" . implode(",", $data) . "]";
-		}
-
-		return $this->bedrockBlockStatesMap[$index] ?? (248 << 4); // Update block id
-	}
-
-	/**
-	 * @throws SchematicException
-	 */
-	private function loadMapping(): void {
-		$dataPath = getcwd() . DIRECTORY_SEPARATOR . "plugin_data" . DIRECTORY_SEPARATOR . "BuilderTools" . DIRECTORY_SEPARATOR . "data" . DIRECTORY_SEPARATOR;
-
-		if(!is_file($bedrockStatesMapPath = $dataPath . "bedrock_block_states_map.json")) {
-			throw new SchematicException($bedrockStatesMapPath . " was not found");
-		}
-
-		$rawBedrockStatesMap = file_get_contents($bedrockStatesMapPath);
-		if(!$rawBedrockStatesMap) {
-			throw new SchematicException("Could not read from $bedrockStatesMapPath");
-		}
-
-		$bedrockBlockStatesMap = json_decode($rawBedrockStatesMap, true);
-		if(!is_array($bedrockBlockStatesMap)) {
-			throw new SchematicException("Invalid or corrupted resource given");
-		}
-
-		$this->bedrockBlockStatesMap = $bedrockBlockStatesMap;
 	}
 
 	public static function getFileExtension(): string {

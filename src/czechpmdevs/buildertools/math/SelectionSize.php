@@ -48,7 +48,7 @@ class SelectionSize {
 		return $this;
 	}
 
-	public function getMinimum(int &$minX = null, int &$minY = null, int &$minZ = null): self {
+	public function getMinimum(?int &$minX = null, ?int &$minY = null, ?int &$minZ = null): self {
 		$minX = $this->minX;
 		$minY = $this->minY;
 		$minZ = $this->minZ;
@@ -56,7 +56,7 @@ class SelectionSize {
 		return $this;
 	}
 
-	public function getMaximum(int &$maxX = null, int &$maxY = null, int &$maxZ = null): self {
+	public function getMaximum(?int &$maxX = null, ?int &$maxY = null, ?int &$maxZ = null): self {
 		$maxX = $this->maxX;
 		$maxY = $this->maxY;
 		$maxZ = $this->maxZ;

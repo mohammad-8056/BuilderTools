@@ -23,8 +23,8 @@ namespace czechpmdevs\buildertools\event\listener;
 use czechpmdevs\buildertools\blockstorage\OfflineSession;
 use czechpmdevs\buildertools\BuilderTools;
 use czechpmdevs\buildertools\editors\Printer;
-use czechpmdevs\buildertools\item\WoodenAxe;
 use czechpmdevs\buildertools\session\SessionManager;
+use czechpmdevs\buildertools\utils\BlockStateConverter;
 use czechpmdevs\buildertools\utils\WorldFixUtil;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\Listener;
@@ -32,6 +32,8 @@ use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\player\PlayerItemUseEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\world\WorldLoadEvent;
+use pocketmine\item\Item;
+use pocketmine\item\ItemTypeIds;
 use pocketmine\item\VanillaItems;
 use pocketmine\Server;
 use RuntimeException;
@@ -65,8 +67,7 @@ class EventListener implements Listener {
 	public function onBlockBreak(BlockBreakEvent $event): void {
 		if(
 			$event->getItem()->getNamedTag()->getTag("buildertools") !== null &&
-			($item = $event->getItem()) instanceof WoodenAxe &&
-			$item->isWandAxe()
+			$this->isWandAxe($event->getItem())
 		) {
 			$selection = SessionManager::getInstance()->getSession($event->getPlayer())->getSelectionHolder();
 			try {
@@ -99,7 +100,7 @@ class EventListener implements Listener {
 			}
 			$this->clickTime[$player->getName()] = microtime(true);
 
-			if($item instanceof WoodenAxe && $item->isWandAxe()) {
+			if($this->isWandAxe($item)) {
 				$selection = SessionManager::getInstance()->getSession($event->getPlayer())->getSelectionHolder();
 				try {
 					$selection->handleWandAxeBlockClick($event->getBlock()->getPosition());
@@ -125,13 +126,15 @@ class EventListener implements Listener {
 
 				$block = $event->getBlock();
 				$world = $event->getBlock()->getPosition()->getWorld();
+				$legacyId = BlockStateConverter::toLegacyFullId($block->getStateId());
+				$pos = $block->getPosition();
 
 				$player->sendTip(
-					"§aID: §7" . $block->getId() . ":" . $block->getMeta() . "\n" .
+					"§aID: §7" . ($legacyId >> BlockStateConverter::LEGACY_META_BITS) . ":" . ($legacyId & BlockStateConverter::LEGACY_META_MASK) . " §8(state " . $block->getStateId() . ")\n" .
 					"§aName: §7" . $block->getName() . "\n" .
 					"§aPosition: §7" . $block->getPosition()->getFloorX() . ";" . $block->getPosition()->getFloorY() . ";" . $block->getPosition()->getFloorZ() . " (" . ($block->getPosition()->getFloorX() >> 4) . ";" . ($block->getPosition()->getFloorZ() >> 4) . ")\n" .
 					"§aWorld: §7" . $world->getDisplayName() . "\n" .
-					"§aBiome: §7" . $world->getBiomeId($block->getPosition()->getFloorX(), $block->getPosition()->getFloorZ()) . " (" . $world->getBiome($block->getPosition()->getFloorX(), $block->getPosition()->getFloorZ())->getName() . ")"
+					"§aBiome: §7" . $world->getBiomeId($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ()) . " (" . $world->getBiome($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ())->getName() . ")"
 				);
 			}
 		}
@@ -147,6 +150,10 @@ class EventListener implements Listener {
 	/** @noinspection PhpUnused */
 	public function onQuit(PlayerQuitEvent $event): void {
 		SessionManager::getInstance()->closeSession($event->getPlayer());
+	}
+
+	private function isWandAxe(Item $item): bool {
+		return $item->getTypeId() === ItemTypeIds::WOODEN_AXE && $item->getNamedTag()->getTag("buildertools") !== null;
 	}
 
 	public function getPlugin(): BuilderTools {

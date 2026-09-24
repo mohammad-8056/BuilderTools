@@ -38,6 +38,7 @@ use czechpmdevs\buildertools\schematics\format\Schematic;
 use czechpmdevs\buildertools\schematics\format\SpongeSchematic;
 use czechpmdevs\buildertools\session\SessionManager;
 use czechpmdevs\buildertools\utils\Timer;
+use pocketmine\block\VanillaBlocks;
 use pocketmine\math\Vector3;
 use pocketmine\player\Player;
 use function array_keys;
@@ -90,7 +91,7 @@ class SchematicsManager {
 				return;
 			}
 
-			SchematicsManager::$loadedSchematics[$task->name] = $task->blockStorage->asBlockArray();
+			SchematicsManager::$loadedSchematics[$task->name] = $task->getBlockStorage()->asBlockArray();
 			$callback(SchematicActionResult::success($timer->time()));
 		});
 	}
@@ -167,10 +168,11 @@ class SchematicsManager {
 		$floorY = $player->getPosition()->getFloorY();
 		$floorZ = $player->getPosition()->getFloorZ();
 
+		$airStateId = VanillaBlocks::AIR()->getStateId();
 		$iterator = new BlockArrayIteratorHelper($schematic);
 		while($iterator->hasNext()) {
 			$iterator->readNext($x, $y, $z, $fullBlockId);
-			if($fullBlockId !== 0) $fillSession->setBlockAt($floorX + $x, $floorY + $y, $floorZ + $z, $fullBlockId);
+			if($fullBlockId !== $airStateId) $fillSession->setBlockAt($floorX + $x, $floorY + $y, $floorZ + $z, $fullBlockId);
 		}
 
 		if($fillSession->getBlocksChanged() === 0) {

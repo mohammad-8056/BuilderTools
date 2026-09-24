@@ -6,11 +6,13 @@ namespace czechpmdevs\buildertools\utils;
 
 use InvalidArgumentException;
 use pocketmine\block\Block;
-use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockTypeIds;
+use pocketmine\block\RuntimeBlockStateRegistry;
 use pocketmine\block\VanillaBlocks;
 use pocketmine\item\StringToItemParser;
 use pocketmine\utils\SingletonTrait;
 use pocketmine\utils\StringToTParser;
+use function is_string;
 
 /**
  * Handles parsing blocks from strings.
@@ -26,34 +28,47 @@ final class StringToBlockParser extends StringToTParser {
 
 		$result->register("air", fn() => VanillaBlocks::AIR());
 
-		foreach(StringToItemParser::getInstance()->getKnownAliases() as $alias) {
+		$itemParser = StringToItemParser::getInstance();
+		foreach($itemParser->getKnownAliases() as $alias) {
 			if(!is_string($alias)) {
 				continue;
 			}
 
-			$item = StringToItemParser::getInstance()->parse($alias);
+			$item = $itemParser->parse($alias);
 			if($item === null) {
 				continue;
 			}
 
 			$block = $item->getBlock();
-			if($block->isSameType(VanillaBlocks::AIR())) {
+			if($block->getTypeId() === BlockTypeIds::AIR) {
 				continue;
 			}
 
-			$result->register($alias, fn() => $item->getBlock());
-		}
-
-		foreach(BlockFactory::getInstance()->getAllKnownStates() as $state) {
 			try {
-				$result->register("{$state->getId()}:{$state->getMeta()}", fn() => $state);
+				$result->register($alias, fn() => clone $block);
 			} catch(InvalidArgumentException) {
 			}
+		}
 
-			if($state->getMeta() === 0) {
+		// Legacy numeric ids (e.g. "35:14" or "1")
+		$registry = RuntimeBlockStateRegistry::getInstance();
+		for($id = 0; $id < 256; ++$id) {
+			for($meta = 0; $meta <= BlockStateConverter::LEGACY_META_MASK; ++$meta) {
+				$stateId = BlockStateConverter::tryFromLegacy($id, $meta);
+				if($stateId === null) {
+					continue;
+				}
+
 				try {
-					$result->register((string)$state->getId(), fn() => $state);
+					$result->register("$id:$meta", fn() => $registry->fromStateId($stateId));
 				} catch(InvalidArgumentException) {
+				}
+
+				if($meta === 0) {
+					try {
+						$result->register((string)$id, fn() => $registry->fromStateId($stateId));
+					} catch(InvalidArgumentException) {
+					}
 				}
 			}
 		}

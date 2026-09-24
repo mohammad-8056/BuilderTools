@@ -21,42 +21,28 @@ declare(strict_types=1);
 namespace czechpmdevs\buildertools\blockstorage;
 
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\utils\AssumptionFailedError;
-use function array_values;
-use function pack;
-use function unpack;
+use function strlen;
 
+/**
+ * Immutable snapshot of BlockArray
+ */
 class CompressedBlockArray {
 	protected string $compressedBlocks;
 	protected string $compressedCoords;
 
-	protected int $size;
-
 	public function __construct(BlockArray $blockArray) {
-		$this->compressedCoords = pack("q*", ...$blockArray->getCoordsArray());
-		$this->compressedBlocks = pack("N*", ...$blockArray->getBlockArray());
-
-		$this->size = $blockArray->size();
+		// Strings are copy-on-write, so no memory is copied here
+		$this->compressedCoords = $blockArray->getPackedCoords();
+		$this->compressedBlocks = $blockArray->getPackedBlocks();
 	}
 
 	public function getSize(): int {
-		return $this->size;
+		return strlen($this->compressedBlocks) >> 2;
 	}
 
 	public function asBlockArray(): BlockArray {
 		$blockArray = new BlockArray();
-
-		/** @phpstan-var int[]|false $coords */
-		$coords = unpack("q*", $this->compressedCoords);
-		/** @phpstan-var int[]|false $blocks */
-		$blocks = unpack("N*", $this->compressedBlocks);
-
-		if($coords === false || $blocks === false) {
-			throw new AssumptionFailedError("Error whilst decompressing");
-		}
-
-		$blockArray->setCoordsArray(array_values($coords));
-		$blockArray->setBlockArray(array_values($blocks));
+		$blockArray->setPackedData($this->compressedCoords, $this->compressedBlocks);
 
 		return $blockArray;
 	}

@@ -22,6 +22,8 @@ namespace czechpmdevs\buildertools\utils;
 
 use czechpmdevs\buildertools\blockstorage\identifiers\BlockIdentifierList;
 use OutOfBoundsException;
+use pocketmine\block\Block;
+use pocketmine\block\BlockTypeIds;
 use pocketmine\item\Item;
 use function array_rand;
 use function count;
@@ -29,14 +31,17 @@ use function explode;
 use function in_array;
 use function is_numeric;
 use function min;
+use function str_contains;
 use function str_replace;
 use function strpos;
+use function strtolower;
 use function substr;
+use function trim;
 
 final class StringToBlockDecoder implements BlockIdentifierList {
 	private string $string;
 
-	private ?string $itemInHand = null;
+	private ?Block $blockInHand = null;
 
 	/** @var int[] */
 	private array $blockIdMap = [];
@@ -46,8 +51,9 @@ final class StringToBlockDecoder implements BlockIdentifierList {
 	public function __construct(string $string, ?Item $handItem = null, bool $mixBlockIds = true) {
 		$this->string = $string;
 
-		if($handItem !== null) {
-			$this->itemInHand = "{$handItem->getId()}:{$handItem->getMeta()}";
+		// Items which can not be placed are converted to air, empty hand is air as well
+		if($handItem !== null && ($handItem->isNull() || $handItem->getBlock()->getTypeId() !== BlockTypeIds::AIR)) {
+			$this->blockInHand = $handItem->getBlock();
 		}
 
 		$this->decode($mixBlockIds);
@@ -87,10 +93,6 @@ final class StringToBlockDecoder implements BlockIdentifierList {
 	 * to both block and blockId maps
 	 */
 	public function decode(bool $mixBlockIds = true): void {
-		if($this->itemInHand !== null) {
-			$this->string = str_replace("hand", $this->itemInHand, $this->string);
-		}
-
 		$split = explode(",", str_replace(";", ",", $this->string));
 		foreach($split as $entry) {
 			$count = 1;
@@ -105,27 +107,28 @@ final class StringToBlockDecoder implements BlockIdentifierList {
 				$block = substr($entry, $pos + 1);
 			}
 
-			$class = StringToBlockParser::getInstance()->parse($block);
+			$isHand = strtolower(trim($block)) === "hand";
+			$class = $isHand ? $this->blockInHand : StringToBlockParser::getInstance()->parse($block);
 			if($class === null) {
 				continue;
 			}
 
 			if(!$mixBlockIds) {
-				if(str_contains($entry, ":")) { // Meta is specified
+				if($isHand || str_contains($entry, ":")) { // Meta is specified
 					for($i = 0; $i < $count; ++$i) {
-						$this->blockMap[] = $class->getId() << 4 | $class->getMeta();
+						$this->blockMap[] = $class->getStateId();
 					}
 				} else {
 					for($i = 0; $i < $count; ++$i) {
-						$this->blockIdMap[] = $class->getId();
+						$this->blockIdMap[] = $class->getTypeId();
 					}
 				}
 				continue;
 			}
 
 			for($i = 0; $i < $count; ++$i) {
-				$this->blockIdMap[] = $class->getId();
-				$this->blockMap[] = $class->getId() << 4 | $class->getMeta();
+				$this->blockIdMap[] = $class->getTypeId();
+				$this->blockMap[] = $class->getStateId();
 			}
 		}
 	}

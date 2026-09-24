@@ -33,12 +33,12 @@ class DuplicateBlockCleanHelper {
 			return;
 		}
 
-		// This seems to be the fastest way to remove duplicate blocks. It is even faster
-		// than just sorting keys array, or combining those arrays manually. In the future,
-		// it would be better to add this to php extension.
-		$blocks = array_combine(array_reverse($blockArray->getCoordsArray(), true), array_reverse($blockArray->getBlockArray(), true));
+		// Keeps the first occurrence of each position (it holds the original block when used for undo)
+		$blocks = array_combine(array_reverse($blockArray->getCoordsArray()), array_reverse($blockArray->getBlockArray()));
 
-		$blockArray->setCoordsArray(array_keys($blocks));
-		$blockArray->setBlockArray(array_values($blocks));
+		$cleaned = new BlockArray();
+		$cleaned->setCoordsArray(array_reverse(array_keys($blocks)));
+		$cleaned->setBlockArray(array_reverse(array_values($blocks)));
+		$blockArray->replaceWith($cleaned);
 	}
 }

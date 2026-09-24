@@ -20,10 +20,9 @@ declare(strict_types=1);
 
 namespace czechpmdevs\buildertools\editors;
 
+use czechpmdevs\buildertools\utils\BlockStateConverter;
 use pocketmine\utils\SingletonTrait;
-use pocketmine\world\format\Chunk;
 use pocketmine\world\format\SubChunk;
-use pocketmine\world\World;
 use function array_key_exists;
 use function json_decode;
 
@@ -36,6 +35,9 @@ class Fixer {
 
 	/** @var int[] */
 	private array $fullBlockFixData;
+
+	/** @var array<int, int>|null */
+	private ?array $stateFixData = null;
 
 	protected function __construct() {
 		/** @var int[] $fullBlockFixData */
@@ -52,37 +54,53 @@ class Fixer {
 		return true;
 	}
 
-	public function convertJavaToBedrockChunk(Chunk $chunk, int $maxY = World::Y_MAX): bool {
+	/**
+	 * @param SubChunk[] $subChunks
+	 */
+	public function convertJavaToBedrockChunk(array $subChunks): bool {
+		$stateFixData = $this->getStateFixData();
 		$hasChanged = false;
 
-		/** @var int|null $currentY */
-		$currentY = null;
-		/** @var SubChunk $subChunk */
-		$subChunk = null;
-
-		for($y = 0; $y < $maxY; ++$y) {
-			if($currentY === null || $y >> SubChunk::COORD_BIT_SIZE !== $currentY) {
-				$currentY = $y >> SubChunk::COORD_BIT_SIZE;
-				$subChunk = $chunk->getSubChunk($y >> SubChunk::COORD_BIT_SIZE);
-
-				if($subChunk->isEmptyFast()) {
-					$y += SubChunk::EDGE_LENGTH;
-					continue;
-				}
+		foreach($subChunks as $subChunk) {
+			if($subChunk->isEmptyFast()) {
+				continue;
 			}
 
-			for($x = 0; $x < 16; ++$x) {
-				for($z = 0; $z < 16; ++$z) {
-					$fullBlock = $subChunk->getFullBlock($x, $y & 0xf, $z);
-					if($this->convertJavaToBedrockId($fullBlock)) {
-						$subChunk->setFullBlock($x, $y & 0xf, $z, $fullBlock);
-
-						$hasChanged = true;
+			for($x = 0; $x < SubChunk::EDGE_LENGTH; ++$x) {
+				for($y = 0; $y < SubChunk::EDGE_LENGTH; ++$y) {
+					for($z = 0; $z < SubChunk::EDGE_LENGTH; ++$z) {
+						$stateId = $subChunk->getBlockStateId($x, $y, $z);
+						if(isset($stateFixData[$stateId])) {
+							$subChunk->setBlockStateId($x, $y, $z, $stateFixData[$stateId]);
+							$hasChanged = true;
+						}
 					}
 				}
 			}
 		}
 
 		return $hasChanged;
+	}
+
+	/**
+	 * @return array<int, int> State id => fixed state id
+	 */
+	private function getStateFixData(): array {
+		if($this->stateFixData !== null) {
+			return $this->stateFixData;
+		}
+
+		$this->stateFixData = [];
+		foreach($this->fullBlockFixData as $from => $to) {
+			$fromState = BlockStateConverter::tryFromLegacy($from >> BlockStateConverter::LEGACY_META_BITS, $from & BlockStateConverter::LEGACY_META_MASK);
+			$toState = BlockStateConverter::tryFromLegacy($to >> BlockStateConverter::LEGACY_META_BITS, $to & BlockStateConverter::LEGACY_META_MASK);
+			if($fromState === null || $toState === null || $fromState === $toState) {
+				continue;
+			}
+
+			$this->stateFixData[$fromState] ??= $toState;
+		}
+
+		return $this->stateFixData;
 	}
 }

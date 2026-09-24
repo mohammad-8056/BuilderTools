@@ -22,6 +22,7 @@ namespace czechpmdevs\buildertools\commands\utility;
 
 use czechpmdevs\buildertools\BuilderTools;
 use czechpmdevs\buildertools\commands\BuilderToolsCommand;
+use czechpmdevs\buildertools\utils\BlockStateConverter;
 use pocketmine\command\CommandSender;
 use pocketmine\player\Player;
 
@@ -38,6 +39,8 @@ class IdCommand extends BuilderToolsCommand {
 			return;
 		}
 
-		$sender->sendMessage(BuilderTools::getPrefix() . "§aID: §9{$sender->getInventory()->getItemInHand()->getBlock()->getId()}:{$sender->getInventory()->getItemInHand()->getBlock()->getMeta()}");
+		$block = $sender->getInventory()->getItemInHand()->getBlock();
+		$legacyId = BlockStateConverter::toLegacyFullId($block->getStateId());
+		$sender->sendMessage(BuilderTools::getPrefix() . "§aID: §9" . ($legacyId >> BlockStateConverter::LEGACY_META_BITS) . ":" . ($legacyId & BlockStateConverter::LEGACY_META_MASK) . " §8({$block->getName()}, state {$block->getStateId()})");
 	}
 }

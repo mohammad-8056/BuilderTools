@@ -23,6 +23,7 @@ namespace czechpmdevs\buildertools\async\convert;
 use czechpmdevs\buildertools\async\BuilderToolsAsyncTask;
 use czechpmdevs\buildertools\editors\Fixer;
 use czechpmdevs\buildertools\utils\Timer;
+use pocketmine\world\format\Chunk;
 use pocketmine\world\format\io\leveldb\LevelDB;
 use pocketmine\world\format\io\WorldProviderManager;
 use RuntimeException;
@@ -66,7 +67,7 @@ class WorldFixTask extends BuilderToolsAsyncTask {
 			throw new RuntimeException("Unknown world provider");
 		}
 
-		$provider = $worldProviderManagerEntry->fromPath($this->worldPath . DIRECTORY_SEPARATOR);
+		$provider = $worldProviderManagerEntry->fromPath($this->worldPath . DIRECTORY_SEPARATOR, $this->getLogger());
 
 		if(!$provider instanceof LevelDB) {
 			throw new RuntimeException("World provider " . get_class($provider) . " is not supported.");
@@ -80,12 +81,11 @@ class WorldFixTask extends BuilderToolsAsyncTask {
 		$this->getLogger()->debug("Discovered $this->totalChunkCount chunks");
 
 		$fixer = Fixer::getInstance();
-		foreach($provider->getAllChunks(true, $this->getLogger()) as $coords => $chunk) {
-			if($fixer->convertJavaToBedrockChunk($chunk->getChunk())) {
-				$chunk->getChunk()->setTerrainDirty();
+		foreach($provider->getAllChunks(true, $this->getLogger()) as $coords => $loadedChunkData) {
+			$chunkData = $loadedChunkData->getData();
+			if($fixer->convertJavaToBedrockChunk($chunkData->getSubChunks())) {
+				$provider->saveChunk($coords[0], $coords[1], $chunkData, Chunk::DIRTY_FLAG_BLOCKS);
 			}
-
-			$provider->saveChunk($coords[0], $coords[1], $chunk);
 
 			$percentage = (int)ceil((++$chunksFixed) * 100 / $this->totalChunkCount);
 			if($this->progressPercentage !== $percentage) {

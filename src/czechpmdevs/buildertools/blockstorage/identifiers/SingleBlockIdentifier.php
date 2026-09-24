@@ -20,33 +20,41 @@ declare(strict_types=1);
 
 namespace czechpmdevs\buildertools\blockstorage\identifiers;
 
+use czechpmdevs\buildertools\utils\BlockStateConverter;
 use pocketmine\block\Block;
+use pocketmine\block\VanillaBlocks;
 
 class SingleBlockIdentifier implements BlockIdentifierList {
+	protected int $typeId;
 
-	protected int $id;
-	protected int $meta;
+	/**
+	 * @param int  $stateId    Block state id
+	 * @param bool $exactState If false, all the states of the block type are matched
+	 */
+	public function __construct(
+		protected int $stateId,
+		protected bool $exactState = true
+	) {
+		$this->typeId = BlockStateConverter::getTypeId($stateId);
+	}
 
-	public function __construct(int $id, ?int $meta = null) {
-		$this->id = $id;
-		if($meta !== null) {
-			$this->meta = $meta;
-		}
+	public static function fromBlock(Block $block, bool $exactState = true): SingleBlockIdentifier {
+		return new SingleBlockIdentifier($block->getStateId(), $exactState);
 	}
 
 	public function nextBlock(?int &$fullBlockId): void {
-		$fullBlockId = $this->id << Block::INTERNAL_METADATA_BITS | $this->meta;
+		$fullBlockId = $this->stateId;
 	}
 
 	public function containsBlock(int $fullBlockId): bool {
-		return isset($this->meta) ? $fullBlockId === ($this->id << Block::INTERNAL_METADATA_BITS | $this->meta) : $fullBlockId >> Block::INTERNAL_METADATA_BITS === $this->id;
+		return $this->exactState ? $fullBlockId === $this->stateId : BlockStateConverter::getTypeId($fullBlockId) === $this->typeId;
 	}
 
 	public function containsBlockId(int $id): bool {
-		return $this->id === $id;
+		return $this->typeId === $id;
 	}
 
 	public static function airIdentifier(): SingleBlockIdentifier {
-		return new SingleBlockIdentifier(0, 0);
+		return SingleBlockIdentifier::fromBlock(VanillaBlocks::AIR());
 	}
 }

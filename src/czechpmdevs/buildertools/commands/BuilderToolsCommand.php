@@ -28,26 +28,24 @@ use pocketmine\player\Player;
 use pocketmine\plugin\Plugin;
 use pocketmine\plugin\PluginOwned;
 use RuntimeException;
+use function count;
 use function str_replace;
 use function strtolower;
 
 abstract class BuilderToolsCommand extends Command implements PluginOwned {
 
-	public function __construct(string $name, string $description = "", string $usageMessage = null, $aliases = []) {
+	public function __construct(string $name, string $description = "", ?string $usageMessage = null, array $aliases = []) {
 		$this->setPermission($this->getPerms($name));
 		parent::__construct($name, $description, $usageMessage, $aliases);
 	}
 
 	/** @noinspection PhpUnused */
 	public function execute(CommandSender $sender, string $commandLabel, array $args) {
-		$permission = $this->getPermission();
-		if($permission === null) {
+		if(count($this->getPermissions()) === 0) {
 			throw new RuntimeException("Command " . __CLASS__ . " is registered wrong.");
 		}
 
-		if(!$sender->hasPermission($permission)) {
-			$sender->sendMessage((string)$this->getPermissionMessage());
-		}
+		$this->testPermission($sender);
 	}
 
 	protected function createBlockDecoder(Player $player, string $args): ?StringToBlockDecoder {

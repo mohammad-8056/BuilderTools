@@ -55,8 +55,8 @@ class Replacement {
 		$minZ = (int)min($pos1->getZ(), $pos2->getZ());
 		$maxZ = (int)max($pos1->getZ(), $pos2->getZ());
 
-		$minY = (int)max(min($pos1->getY(), $pos2->getY(), World::Y_MAX - 1), 0);
-		$maxY = (int)min(max($pos1->getY(), $pos2->getY(), 0), World::Y_MAX - 1);
+		$minY = (int)max(min($pos1->getY(), $pos2->getY(), World::Y_MAX - 1), World::Y_MIN);
+		$maxY = (int)min(max($pos1->getY(), $pos2->getY(), World::Y_MIN), World::Y_MAX - 1);
 
 		$fillSession = new MaskedFillSession($player->getWorld(), false, true, $mask);
 		$fillSession->setDimensions($minX, $maxX, $minZ, $maxZ);
